@@ -11,6 +11,13 @@ const App: FC = () => {
   const [content, setContent] = useState("");
   const [chatList, setChatList] = useState<any>([]);
 
+  const chatListRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    chatListRef.current = chatList;
+    setChatList(chatList);
+  }, [chatList]);
+
   // 名字改变时
   const handleChangeName = (event: any) => {
     setName(event.target.value);
@@ -18,8 +25,6 @@ const App: FC = () => {
 
   // 加入聊天室
   const handleAddChat = () => {
-    console.log("name", name);
-
     if (!name) {
       message.error("输入不可为空");
       return;
@@ -29,43 +34,22 @@ const App: FC = () => {
     setHasUser(true);
     ws.current = new WebSocket("ws://localhost:4000");
     //在建立连接时会触发
-    // ws.current.onopen = function () {
-    //   //向服务器发送消息
-    //   ws.current.send(
-    //     JSON.stringify({
-    //       text: name,
-    //       type: "setName",
-    //     })
-    //   );
-    // };
-    console.log("==", ws.current);
-
-    ws.current.addEventListener("open", () => {
+    ws.current.onopen = function () {
+      //向服务器发送消息
       ws.current.send(
         JSON.stringify({
           text: name,
           type: "setName",
         })
       );
-    });
+    };
 
-    ws.current.addEventListener("message", (event: any) => {
-      console.log("onmessage", event);
+    //自动接收服务器返回的数据
+    ws.current.onmessage = function (event: any) {
       const data: any = JSON.parse(event.data);
-      setChatList([...chatList, data]);
-    });
-
-    // //自动接收服务器返回的数据
-    // ws.current.onmessage = function (event: any) {
-    //   console.log("onmessage", event);
-    //   const data: any = JSON.parse(event.data);
-    //   console.log(data, chatList, name);
-    //   // const tmp = chatList.slice(0);
-    //   // console.log("tmp", tmp);
-    //   // tmp.push(data);
-    //   setName("s");
-    //   setChatList([...chatList, data]);
-    // };
+      setChatList([...chatListRef.current, data]);
+      chatListRef.current = [...chatListRef.current, data];
+    };
   };
 
   // 聊天内容改变时
@@ -79,20 +63,13 @@ const App: FC = () => {
       message.warn("输入为空哦");
       return;
     }
-    ws.current.addEventListener("open", () => {
-      console.log("-");
-      ws.current.send(
-        JSON.stringify({
-          text: content,
-          type: "chat",
-        })
-      );
-    });
-    ws.current.addEventListener("message", (event: any) => {
-      console.log("onmessage", event);
-      const data: any = JSON.parse(event.data);
-      setChatList([...chatList, data]);
-    });
+
+    ws.current.send(
+      JSON.stringify({
+        text: content,
+        type: "chat",
+      })
+    );
     setContent("");
   };
 
